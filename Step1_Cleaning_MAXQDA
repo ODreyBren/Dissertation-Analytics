@@ -1,0 +1,381 @@
+#setpath
+#setwd("yourComputerPath")
+
+#load packages
+library(tidyverse) #datamanipulations and ggplot
+library(readxl) #importing Excel files
+
+#load data
+
+dataWrangling <- read_excel("DescriptiveStatsDocument Variables_no text.xlsx")
+
+
+#This data cleaning process is to get the necessary categorical variables. Some values will be droped because they are necessary for other analyses
+### they are otherwise superflous for quantitative variables. Examples include: the procedures for resignation or voting registration, parent code headings. 
+
+##################.  New names:                                                                                                                                           
+##########`Language` -> `Language...20`
+##########`Delegate` -> `Delegate...31`
+##########`Ballot type` -> `Ballot type...35`
+##########`Data protection Confidentiality` -> `Data protection Confidentiality...68`
+##########`Other` -> `Other...99`
+##########`Data protection Confidentiality` -> `Data protection Confidentiality...113`
+##########`Language` -> `Language...143`
+##########`Other` -> `Other...171`
+##########`Electronic` -> `Electronic...173`
+##########`Other` -> `Other...175`
+##########`Who` -> `Who...180`
+##########`Other` -> `Other...186`
+##########`Other` -> `Other...193`
+##########`Ballot type` -> `Ballot type...210`
+##########`Electronic` -> `Electronic...217`
+##########`Electronic` -> `Electronic...220`
+##########`Other` -> `Other...223`
+##########`Who` -> `Who...231`
+##########`Delegate` -> `Delegate...234`
+##########`How to become` -> `How to become...244`
+##########`How to become` -> `How to become...245`
+
+
+
+
+
+# keep only the leadership race documents
+
+dataWrangling_ldrRace <- dataWrangling %>%
+                          filter(PartyDocType == "bylaw" | PartyDocType == "constitution" | PartyDocType == "ldrQuestionnaire" |
+                                   PartyDocType == "ldrRace" | PartyDocType == "ldrRaceMoney")
+
+##### ##### ##### ##### ##### ##### 
+### Getting the Admin heading codes
+##### ##### ##### ##### ##### ##### 
+dataWrangling_ldrRace_Admin <- dataWrangling_ldrRace %>%
+                                select(c(`Document name`: partyNameFam, 
+                                        Admin : `Term length`
+                                        ))
+
+#recoding the race objectives. The data transformations of other variables will follow this template
+dataWrangling_ldrRace_Admin <- dataWrangling_ldrRace_Admin %>%
+  gather(raceObjectives, countObjectives, `Open-transparent`:`Increase money`,
+         na.rm = FALSE, convert = TRUE) # The convert here will automatically convert values to logical, integer, numeric, complex or factor as appropriate
+
+
+# who evals the candidate candidacies
+dataWrangling_ldrRace_Admin <- dataWrangling_ldrRace_Admin %>%
+  gather(whoEvalsCandidate, countCandidateEval, `Race president / CEO` : Committee,
+         na.rm = FALSE, convert = TRUE)
+
+
+#Interviews mamdatory or not
+dataWrangling_ldrRace_Admin <- dataWrangling_ldrRace_Admin %>%
+  gather(interview, countInterview, Mandatory, `upon request`,
+         na.rm = FALSE, convert = TRUE)
+
+
+#When to launch leadership race
+dataWrangling_ldrRace_Admin <- dataWrangling_ldrRace_Admin %>%
+  gather(whenLaunchProcess, countWhenLaunchRace, `When declare leadership vote`  : `Term length`,
+         na.rm = FALSE, convert = TRUE)
+
+#change values to make this variable more intuitive (see Codebook 2023-03)
+
+dataWrangling_ldrRace_Admin$whenLaunchProcess[dataWrangling_ldrRace_Admin$whenLaunchProcess == "OTHER"] <- "Other reasons"
+dataWrangling_ldrRace_Admin$whenLaunchProcess[dataWrangling_ldrRace_Admin$whenLaunchProcess == "When declare leadership vote" | 
+                                                dataWrangling_ldrRace_Admin$whenLaunchProcess == "leadership review" |
+                                                dataWrangling_ldrRace_Admin$whenLaunchProcess == "Procedure"] <- NA
+dataWrangling_ldrRace_Admin$whenLaunchProcess[dataWrangling_ldrRace_Admin$whenLaunchProcess == "After election if party does not form gov"] <- "LDR R at Congress if not in Gov"
+dataWrangling_ldrRace_Admin$whenLaunchProcess[dataWrangling_ldrRace_Admin$whenLaunchProcess == "After leadership vote"] <- "LDR R after Ldr vote"
+dataWrangling_ldrRace_Admin$whenLaunchProcess[dataWrangling_ldrRace_Admin$whenLaunchProcess == "Every convention"] <- "LDR R at every convention"
+dataWrangling_ldrRace_Admin$whenLaunchProcess[dataWrangling_ldrRace_Admin$whenLaunchProcess == "Other...99"] <- "LDR R Other reasons"
+
+
+
+
+## Interim leader can be candidate
+dataWrangling_ldrRace_Admin <- dataWrangling_ldrRace_Admin %>%
+  gather(interimCanBeCandidate, interimCount, No  : Yes,
+         na.rm = FALSE, convert = TRUE)
+
+#clean the values up
+# drop column that is the code heading for the interim leader variable
+
+dataWrangling_ldrRace_Admin <- dataWrangling_ldrRace_Admin %>%
+                              select(-`Interim leader can be candidate`)
+
+
+#Candidate evalutation rules. Clear rules for aproval or rejection
+dataWrangling_ldrRace_Admin <- dataWrangling_ldrRace_Admin %>%
+  gather(candidateEvalClearRules, countAproveReject, Approuval  : Rejection,
+         na.rm = FALSE, convert = TRUE)
+
+
+# rules to do with internal logistics during the leadership race
+dataWrangling_ldrRace_Admin <- dataWrangling_ldrRace_Admin %>%
+  gather(ipdRelations, countLdrRaceAdmin, `IPD relations (+)`  : Neutrality,
+         na.rm = FALSE, convert = TRUE)
+
+##### ##### ##### ##### ##### ##### ##### 
+##### Candidate requirement variables ##
+##### ##### ##### ##### ##### ##### ##### 
+dataWrangling_ldrRace_canReq <- dataWrangling_ldrRace %>%
+  select(c(`Document name`: partyNameFam, 
+           `Candidacy requirements` : Withdrawal
+  ))
+
+
+#The different questions that candidates have to answer that are not part of any requirement
+dataWrangling_ldrRace_canReq <- dataWrangling_ldrRace_canReq %>%
+  gather(questionnaire, countQuestionQs,  `Conflict of interest` : Other...171,
+         na.rm = FALSE, convert = TRUE)
+
+
+## code of conduct
+dataWrangling_ldrRace_canReq <- dataWrangling_ldrRace_canReq %>%
+  gather(codeConduct, countCodeConduct, `Code of conduct` : `Compliance with the law`, 
+         `Party image (logo or otherwise)`,
+         na.rm = FALSE, convert = TRUE)
+
+#Signature weight
+dataWrangling_ldrRace_canReq <- dataWrangling_ldrRace_canReq %>%
+  gather(signWeight, countSingatureW, Electronic...173 : Ridings,
+         na.rm = FALSE, convert = TRUE)
+
+#Drop unecessary signature variables
+dataWrangling_ldrRace_canReq <- dataWrangling_ldrRace_canReq %>%
+  select(-Signatures)
+
+dataWrangling_ldrRace_canReq <- dataWrangling_ldrRace_canReq %>%
+  select(-`Application file`)
+
+
+#Who candidate
+
+dataWrangling_ldrRace_canReq <- dataWrangling_ldrRace_canReq %>%
+  gather(whoCandidate, countWhoCandidate, `Gender parity` : Member,
+         na.rm = FALSE, convert = TRUE)
+
+
+
+
+dataWrangling_ldrRace_canReq <- dataWrangling_ldrRace_canReq %>%
+  select(-Who...180)
+
+
+## Non questionnaire candidate requirements
+dataWrangling_ldrRace_canReq <- dataWrangling_ldrRace_canReq %>%
+  gather(candidateReq, countCanReq, `Abide by party statutes/principals etc`  : `Vision for party Why want position`,
+         na.rm = FALSE, convert = TRUE)
+
+#Candidate training
+dataWrangling_ldrRace_canReq$partyOffersTrainingCandidates <- dataWrangling_ldrRace_canReq$`Training offered by party`
+
+dataWrangling_ldrRace_canReq <- dataWrangling_ldrRace_canReq %>%
+  select(-`Training offered by party`)
+
+
+##### ##### ##### 
+###Voting rules
+##### ##### ##### 
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace %>%
+  select(c(`Document name`: partyNameFam, 
+           Vote : Members
+  ))
+
+
+#Different ways votes are weighted
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  gather(voteWeight, countVoteWeight, `Weight - Supporters`  : `Weight- age group`,
+         na.rm = FALSE, convert = TRUE)
+
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules  %>%
+  select(-Weight)
+
+
+##How delegates are chosen
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  gather(delegateSelection, countDelegSelect, `All members can be delegates`,
+         `who chooses: when certain conditions filled` : `can only be delegate in home riding`,
+         na.rm = FALSE, convert = TRUE  )
+
+
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  select(-c(`Union vote`, `How to become...244`, `How to become...245`, Delegate...234))
+
+
+
+##Vote method
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  gather(voteMethod, countVoteMethod, Electronic...217: `In person`, Mail ,
+         na.rm = FALSE, convert = TRUE)
+
+
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  select(-c(Electronic...220, `In person at a congress`))
+
+
+##Selectorate
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  gather(selectorate, countSelectorate, `All electors`, Supporters, Members ,
+         na.rm = FALSE, convert = TRUE)
+
+
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  select(-c(Who...231, Other...223))
+
+
+##vote parameters
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  gather(voteParametersSame, countVoteParameters, `Real time voting`, `Different for convention voting`,
+         na.rm = FALSE, convert = TRUE )
+
+
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  select(-c(`vote method`))
+
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  select(-c(`Ballot type...210`))
+
+
+#### clean variable names and value names
+
+dataWrangling_ldrRace_VotingRules$voteWeight<- sub("Weight - ", "", dataWrangling_ldrRace_VotingRules$voteWeight)
+dataWrangling_ldrRace_VotingRules$voteWeight<- sub("Weight - ", "", dataWrangling_ldrRace_VotingRules$voteWeight)
+dataWrangling_ldrRace_VotingRules$voteWeight<- sub("Weight-", "", dataWrangling_ldrRace_VotingRules$voteWeight)
+
+
+dataWrangling_ldrRace_VotingRules$voteMethod<- sub("...217", "", dataWrangling_ldrRace_VotingRules$voteMethod)
+
+dataWrangling_ldrRace_VotingRules$rulesTieBreaking<- dataWrangling_ldrRace_VotingRules$`Tie between two candidates`
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  select(-c(`Tie between two candidates`))
+
+dataWrangling_ldrRace_VotingRules$ballotChoiceRule<- dataWrangling_ldrRace_VotingRules$`choice of ballot`
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  select(-c(`choice of ballot`))
+
+
+dataWrangling_ldrRace_VotingRules$ballotStorageRule<- dataWrangling_ldrRace_VotingRules$`Ballot storage`
+dataWrangling_ldrRace_VotingRules <- dataWrangling_ldrRace_VotingRules %>%
+  select(-c(`Ballot storage`))
+
+
+
+##### ##### ##### 
+###Money rules
+##### ##### ##### 
+
+
+dataWrangling_ldrRace_MoneyRules <- dataWrangling_ldrRace %>%
+                        select(c(`Document name`: partyNameFam, 
+                                 Money : `Transfer between entities` 
+                        ))
+
+
+#types of fees
+dataWrangling_ldrRace_MoneyRules <- dataWrangling_ldrRace_MoneyRules %>%
+  gather(fees, countFees, Other...193  : `Compliance deposit`,
+         na.rm = FALSE, convert = TRUE  )
+
+#drop useless vars
+
+dataWrangling_ldrRace_MoneyRules <- dataWrangling_ldrRace_MoneyRules %>%
+  select(-c(Fines, Prohibited, Exclusions, Other...186, Fees, AmountDeposit))
+
+
+
+#loading the numbers data
+
+#registration fees
+registrationFeeNumbersData <- read_csv("registrationFeeNumbers.csv")
+
+#spending limit
+spendingLimitAmountData <- read_csv("spendingLimitAmounts.csv")
+
+#amount compliance deposit
+complianceDepositAmountData <- read_csv("complianceDepAmount.csv")
+
+#Turn off scientific notation as global setting
+#convert the amounts so that they do not appear in scientific notation in plots
+options(scipen=999)
+
+#merge money datasets
+
+
+
+dataWrangling_ldrRace_MoneyRules <- full_join(dataWrangling_ldrRace_MoneyRules, registrationFeeNumbersData)
+dataWrangling_ldrRace_MoneyRules <- full_join(dataWrangling_ldrRace_MoneyRules, spendingLimitAmountData)
+dataWrangling_ldrRace_MoneyRules <- full_join(dataWrangling_ldrRace_MoneyRules, complianceDepositAmountData)
+
+
+#exportWithNumbers
+library(rio)
+export(moneyRulesData, "moneyRulesDataWithNumbers.csv")
+
+
+
+##### Drop party doc types to only keep constitution and leadership race documents
+
+dataWrangling_ldrRace_MoneyRules <- dataWrangling_ldrRace_MoneyRules %>%
+  filter(PartyDocType == "ldrRaceMoney" | PartyDocType == "constitution" | 
+           PartyDocType == "ldrQuestionnaire" | PartyDocType == "bylaw" | PartyDocType == "ldrRace" )
+
+
+
+### MAXQDA is great, but I need to clean up the number of observed values for each party per year. 
+## I will remove doubles for each row based on the following vars: jurisdiction, partyNameFam, docYear, PartyDocType
+## I need to keep the PartyDocType (for now) because I want to know how many of the rules are permanent and which ones are not...
+##### --> TO CONFIRM WITH MARC AND JEAN-BENOIT
+
+
+#administrative rules
+dataWrangling_ldrRace_Admin_clean <- distinct(dataWrangling_ldrRace_Admin)
+
+
+#Next step is to recode the variables that I forgot to recode in the revious steps (2023-04-06)
+
+#candidate requirements
+dataWrangling_ldrRace_canReq_clean <- distinct(dataWrangling_ldrRace_canReq)
+
+
+#money
+dataWrangling_ldrRace_MoneyRules_clean <- distinct(dataWrangling_ldrRace_MoneyRules)
+
+# Voting
+dataWrangling_ldrRace_VotingRules_clean <- distinct(dataWrangling_ldrRace_VotingRules)
+
+
+
+#merging all datasets
+
+dataLdrCanCleanish <- full_join(dataWrangling_ldrRace_Admin_clean, dataWrangling_ldrRace_canReq_clean) #admin and candidate requirements
+dataLdrCanCleanish <- full_join(dataLdrCanCleanish, dataWrangling_ldrRace_MoneyRules_clean ) #previous two with money rules
+dataLdrCanCleanish <- full_join(dataLdrCanCleanish, dataWrangling_ldrRace_VotingRules_clean ) #previous two with money rules
+
+
+
+#droping those variables that I forgot to drop and that are only useful if we work with MAXQDA
+
+
+#admin
+dataLdrCanCleanish <- dataLdrCanCleanish%>%
+                    select(-c(Admin,`Candidacy evaluation`, Interview, Penalty, `Race objectives`, #heading or subheading labels
+                           Rules : `Rules rigidity/Discretion/Finality of decision` #needs to be recoded and I may not have time on date of this code (2023-04-06)
+ ))
+
+#candidate requirement and money
+dataLdrCanCleanish <- dataLdrCanCleanish%>%
+  select(-c(`Candidacy requirements`, `Questionnaire-Form`, Money, #heading or subheading labels
+            Deficits : `Transfer between entities`  #needs to be recoded and I may not have time on date of this code (2023-04-06)
+  ))
+
+#vote
+dataLdrCanCleanish <- dataLdrCanCleanish%>%
+  select(-c(`Ballot validity`, `How to register`, `attendance provisions`  #needs to be recoded and I may not have time on date of this code (2023-04-06)
+  ))
+
+#make the values prettier by removing the numbers
+dataLdrCanCleanish$signWeight[dataLdrCanCleanish$signWeight == "Electronic...173"] <- "Electronic"
+dataLdrCanCleanish$fees[dataLdrCanCleanish$fees == "Other...193"] <- "Other"
+
+
+
